@@ -109,7 +109,7 @@
 
 <header>
   <div class="logo">
-    <div class="logo-icon">🌿</div>
+    <div class="logo-icon">🏭</div>
     <div>
       <div class="logo-name">PlantMonitor</div>
       <div class="logo-sub">Production Facility</div>
@@ -123,7 +123,7 @@
 
 <div class="overview">
   <div class="overview-card" id="ov1" onclick="switchTab('plant1')">
-    <div class="overview-icon plant1">🌱</div>
+    <div class="overview-icon plant1">🏭</div>
     <div class="overview-info">
       <div class="overview-name">Plant 1</div>
       <div class="overview-reading" id="ov1Reading">-- / --</div>
@@ -131,7 +131,7 @@
     <span class="overview-badge badge-offline" id="ov1Badge">No Device</span>
   </div>
   <div class="overview-card active" id="ov2" onclick="switchTab('plant2')">
-    <div class="overview-icon plant2">🌿</div>
+    <div class="overview-icon plant2">🏭</div>
     <div class="overview-info">
       <div class="overview-name">Plant 2</div>
       <div class="overview-reading" id="ov2Reading">-- / --</div>
@@ -141,8 +141,8 @@
 </div>
 
 <div class="tab-nav" style="background:var(--surface);">
-  <button class="tab-btn" id="tab-plant1" onclick="switchTab('plant1')">🌱 Plant 1</button>
-  <button class="tab-btn active" id="tab-plant2" onclick="switchTab('plant2')">🌿 Plant 2</button>
+  <button class="tab-btn" id="tab-plant1" onclick="switchTab('plant1')">🏭 Plant 1</button>
+  <button class="tab-btn active" id="tab-plant2" onclick="switchTab('plant2')">🏭 Plant 2</button>
 </div>
 
 <main>
@@ -218,6 +218,9 @@
 </footer>
 
 <!-- Load libraries BEFORE the script that uses them -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.0.3/mqtt.min.js"></script>
 
