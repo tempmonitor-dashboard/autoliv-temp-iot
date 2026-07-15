@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plant Monitor Dashboard</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+    :root {
+      --bg:#f0f4f8;--surface:#ffffff;--surface2:#f8fafc;--border:#e2e8f0;
+      --temp:#0ea5e9;--temp-light:#e0f2fe;--hum:#10b981;--hum-light:#d1fae5;
+      --accent:#6366f1;--accent-light:#eef2ff;--muted:#94a3b8;--text:#0f172a;
+      --subtext:#475569;--online:#22c55e;--offline:#94a3b8;--danger:#ef4444;
+      --danger-light:#fef2f2;
+      --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md:0 4px 6px rgba(0,0,0,0.07),0 2px 4px rgba(0,0,0,0.05);
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh}
+    header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+    .logo{display:flex;align-items:center;gap:12px}
+    .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--temp),var(--accent));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(14,165,233,0.3)}
+    .logo-name{font-size:16px;font-weight:700;letter-spacing:-0.3px}
+    .logo-sub{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+    .mqtt-status{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1px solid var(--border);font-size:12px;font-weight:500;background:var(--surface2);transition:all 0.3s}
+    .mqtt-dot{width:7px;height:7px;border-radius:50%;background:var(--offline);transition:background 0.3s}
+    .mqtt-status.online{border-color:rgba(34,197,94,0.3);color:var(--online);background:#f0fdf4}
+    .mqtt-status.online .mqtt-dot{background:var(--online);animation:pulse 2s infinite}
+    .mqtt-status.offline{color:var(--muted)}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+    .overview{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 32px;display:flex;gap:16px;overflow-x:auto}
+    .overview-card{display:flex;align-items:center;gap:12px;padding:12px 20px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);min-width:200px;cursor:pointer;transition:all 0.2s;flex:1}
+    .overview-card:hover{border-color:var(--temp);box-shadow:var(--shadow-md)}
+    .overview-card.active{border-color:var(--accent);background:var(--accent-light)}
+    .overview-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .overview-icon.plant1{background:#fef3c7}
+    .overview-icon.plant2{background:var(--temp-light)}
+    .overview-info{flex:1;min-width:0}
+    .overview-name{font-size:12px;font-weight:600;color:var(--subtext);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
+    .overview-reading{font-size:15px;font-weight:700;font-family:'JetBrains Mono',monospace}
+    .overview-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px}
+    .badge-online{background:#dcfce7;color:#16a34a}
+    .badge-offline{background:#f1f5f9;color:var(--muted)}
+    .badge-alert{background:var(--danger-light);color:var(--danger)}
+    .tab-nav{padding:20px 32px 0;display:flex;gap:4px;border-bottom:1px solid var(--border);background:var(--surface)}
+    .tab-btn{padding:10px 24px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.2s;border-radius:8px 8px 0 0}
+    .tab-btn:hover{color:var(--text);background:var(--surface2)}
+    .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+    main{max-width:1100px;margin:0 auto;padding:32px 24px}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+    .offline-notice{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:60px 40px;text-align:center}
+    .offline-notice .icon{font-size:48px;margin-bottom:16px}
+    .offline-notice h3{font-size:18px;font-weight:600;margin-bottom:8px}
+    .offline-notice p{font-size:14px;color:var(--muted);max-width:320px;margin:0 auto;line-height:1.6}
+    .alert-banner{background:var(--danger-light);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:14px 20px;margin-bottom:24px;display:none;align-items:center;gap:10px;font-size:13px;font-weight:500;color:var(--danger)}
+    .alert-banner.show{display:flex}
+    .plant-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+    .plant-title{font-size:24px;font-weight:700;letter-spacing:-0.5px}
+    .plant-subtitle{font-size:13px;color:var(--muted);margin-top:2px}
+    .last-update{font-size:12px;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:6px 14px;border-radius:20px;font-family:'JetBrains Mono',monospace}
+    .cards{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:var(--shadow);position:relative;overflow:hidden;transition:box-shadow 0.2s}
+    .card:hover{box-shadow:var(--shadow-md)}
+    .card-top-bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}
+    .card.temp .card-top-bar{background:linear-gradient(90deg,var(--temp),transparent)}
+    .card.hum  .card-top-bar{background:linear-gradient(90deg,var(--hum),transparent)}
+    .card-label{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:20px}
+    .card-label-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+    .card.temp .card-label{color:var(--temp)}
+    .card.temp .card-label-icon{background:var(--temp-light)}
+    .card.hum  .card-label{color:var(--hum)}
+    .card.hum  .card-label-icon{background:var(--hum-light)}
+    .card-value{font-family:'JetBrains Mono',monospace;font-size:56px;font-weight:700;line-height:1;margin-bottom:10px}
+    .card.temp .card-value{color:var(--temp)}
+    .card.hum  .card-value{color:var(--hum)}
+    .card-unit{font-size:24px;font-weight:400;opacity:0.6}
+    .card-status{font-size:12px;color:var(--muted);margin-top:4px}
+    .status-row{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+    .status-chip{display:flex;align-items:center;gap:8px;padding:12px 18px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;box-shadow:var(--shadow);flex:1;min-width:130px}
+    .status-chip-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+    .status-chip-value{color:var(--text);font-weight:600;font-family:'JetBrains Mono',monospace}
+    .chip-badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+    .chip-badge.normal{background:#dcfce7;color:#16a34a}
+    .chip-badge.danger{background:var(--danger-light);color:var(--danger)}
+    .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:var(--shadow)}
+    .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+    .chart-title{font-size:15px;font-weight:600}
+    .chart-subtitle{font-size:12px;color:var(--muted);margin-top:2px}
+    .chart-legend{display:flex;gap:20px}
+    .legend-item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--subtext);font-weight:500}
+    .legend-dot{width:10px;height:10px;border-radius:50%}
+    .chart-wrap{position:relative;height:280px}
+    footer{text-align:center;padding:24px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);background:var(--surface);letter-spacing:0.5px;margin-top:40px}
+    @media(max-width:640px){
+      header{padding:0 16px}
+      .overview{padding:12px 16px}
+      .tab-nav{padding:16px 16px 0}
+      main{padding:20px 16px}
+      .cards{grid-template-columns:1fr}
+      .card-value{font-size:44px}
+      .plant-title{font-size:20px}
+      .overview-card{min-width:160px}
+      .status-row{gap:10px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🌿</div>
+    <div>
+      <div class="logo-name">PlantMonitor</div>
+      <div class="logo-sub">Production Facility</div>
+    </div>
+  </div>
+  <div class="mqtt-status offline" id="mqttStatus">
+    <div class="mqtt-dot"></div>
+    <span id="mqttLabel">Connecting...</span>
+  </div>
+</header>
+
+<div class="overview">
+  <div class="overview-card" id="ov1" onclick="switchTab('plant1')">
+    <div class="overview-icon plant1">🌱</div>
+    <div class="overview-info">
+      <div class="overview-name">Plant 1</div>
+      <div class="overview-reading" id="ov1Reading">-- / --</div>
+    </div>
+    <span class="overview-badge badge-offline" id="ov1Badge">No Device</span>
+  </div>
+  <div class="overview-card active" id="ov2" onclick="switchTab('plant2')">
+    <div class="overview-icon plant2">🌿</div>
+    <div class="overview-info">
+      <div class="overview-name">Plant 2</div>
+      <div class="overview-reading" id="ov2Reading">-- / --</div>
+    </div>
+    <span class="overview-badge badge-offline" id="ov2Badge">Connecting</span>
+  </div>
+</div>
+
+<div class="tab-nav" style="background:var(--surface);">
+  <button class="tab-btn" id="tab-plant1" onclick="switchTab('plant1')">🌱 Plant 1</button>
+  <button class="tab-btn active" id="tab-plant2" onclick="switchTab('plant2')">🌿 Plant 2</button>
+</div>
+
+<main>
+  <div class="tab-panel" id="panel-plant1">
+    <div class="offline-notice">
+      <div class="icon">🔌</div>
+      <h3>Plant 1 — Not Yet Connected</h3>
+      <p>Plant 1 ESP32 device is not yet set up. It will appear here automatically once the device comes online.</p>
+    </div>
+  </div>
+
+  <div class="tab-panel active" id="panel-plant2">
+    <div class="plant-header">
+      <div>
+        <div class="plant-title">Plant 2</div>
+        <div class="plant-subtitle">Temperature & Humidity Monitor — Production Facility</div>
+      </div>
+      <div class="last-update">Updated: <span id="p2LastUpdate">--:--:--</span></div>
+    </div>
+
+    <div class="alert-banner" id="p2Alert">
+      ⚠️ <strong>High Temperature Alert!</strong> — Temperature exceeded 38°C. Check the area immediately.
+    </div>
+
+    <div class="cards">
+      <div class="card temp">
+        <div class="card-top-bar"></div>
+        <div class="card-label"><div class="card-label-icon">🌡️</div>Temperature</div>
+        <div class="card-value" id="p2Temp">--<span class="card-unit">°C</span></div>
+        <div class="card-status" id="p2TempStatus">Waiting for data...</div>
+      </div>
+      <div class="card hum">
+        <div class="card-top-bar"></div>
+        <div class="card-label"><div class="card-label-icon">💧</div>Humidity</div>
+        <div class="card-value" id="p2Hum">--<span class="card-unit">%</span></div>
+        <div class="card-status" id="p2HumStatus">Waiting for data...</div>
+      </div>
+    </div>
+
+    <div class="status-row">
+      <div class="status-chip">
+        <div><div class="status-chip-label">Area</div><div class="status-chip-value">PLANT 2</div></div>
+      </div>
+      <div class="status-chip">
+        <div><div class="status-chip-label">System Status</div><span class="chip-badge normal" id="p2StatusBadge">NORMAL</span></div>
+      </div>
+      <div class="status-chip">
+        <div><div class="status-chip-label">Temp Threshold</div><div class="status-chip-value">38.0°C</div></div>
+      </div>
+      <div class="status-chip">
+        <div><div class="status-chip-label">Active Hours</div><div class="status-chip-value">8AM – 8PM</div></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Live Sensor Analytics</div>
+          <div class="chart-subtitle">Real-time temperature & humidity trend (last 30 readings)</div>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div>Temperature (°C)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Humidity (%)</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="p2Chart"></canvas></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  PlantMonitor &nbsp;·&nbsp; Production Facility Dashboard &nbsp;·&nbsp; Powered by ESP32 + HiveMQ
+</footer>
+
+<!-- Load libraries BEFORE the script that uses them -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.0.3/mqtt.min.js"></script>
+
+<script>
+  const BROKER  = "wss://0204957075a94afba97a2f7ebc7c6ffb.s1.eu.hivemq.cloud:8884/mqtt";
+  const USER    = "ESPPROJECT";
+  const PASS    = "temperature12";
+  const LIMIT   = 38.0;
+  const MAX_PTS = 30;
+
+  function switchTab(plant) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.overview-card').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + plant).classList.add('active');
+    document.getElementById('panel-' + plant).classList.add('active');
+    document.getElementById('ov' + (plant === 'plant1' ? '1' : '2')).classList.add('active');
+  }
+
+  const p2Labels = [], p2TempData = [], p2HumData = [];
+
+  const p2Chart = new Chart(document.getElementById('p2Chart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: p2Labels,
+      datasets: [
+        {
+          label: 'Temperature (°C)',
+          data: p2TempData,
+          borderColor: '#0ea5e9',
+          backgroundColor: 'rgba(14,165,233,0.07)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#fff',
+          pointBorderColor: '#0ea5e9',
+          pointBorderWidth: 2,
+          tension: 0.4,
+          fill: true,
+          yAxisID: 'yTemp',
+        },
+        {
+          label: 'Humidity (%)',
+          data: p2HumData,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16,185,129,0.07)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#fff',
+          pointBorderColor: '#10b981',
+          pointBorderWidth: 2,
+          tension: 0.4,
+          fill: true,
+          yAxisID: 'yHum',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#fff',
+          borderColor: '#e2e8f0',
+          borderWidth: 1,
+          titleColor: '#475569',
+          bodyColor: '#0f172a',
+          padding: 12,
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#f1f5f9' },
+          ticks: { color: '#94a3b8', font: { size: 11, family: 'JetBrains Mono' }, maxTicksLimit: 8 }
+        },
+        yTemp: {
+          position: 'left',
+          grid: { color: '#f1f5f9' },
+          ticks: { color: '#0ea5e9', font: { size: 11 }, callback: v => v + '°C' }
+        },
+        yHum: {
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { color: '#10b981', font: { size: 11 }, callback: v => v + '%' }
+        }
+      }
+    }
+  });
+
+  const mqttStatus = document.getElementById('mqttStatus');
+  const mqttLabel  = document.getElementById('mqttLabel');
+
+  const client = mqtt.connect(BROKER, {
+    username: USER,
+    password: PASS,
+    clientId: 'dashboard_' + Math.random().toString(16).substr(2, 8),
+    clean: true,
+    reconnectPeriod: 3000,
+  });
+
+  client.on('connect', () => {
+    mqttStatus.className = 'mqtt-status online';
+    mqttLabel.textContent = 'LIVE';
+    client.subscribe('plant2/temperature');
+    client.subscribe('plant2/humidity');
+    client.subscribe('plant1/temperature');
+    client.subscribe('plant1/humidity');
+    console.log('MQTT connected!');
+  });
+
+  client.on('reconnect', () => {
+    mqttStatus.className = 'mqtt-status offline';
+    mqttLabel.textContent = 'Reconnecting...';
+  });
+
+  client.on('error', () => {
+    mqttStatus.className = 'mqtt-status offline';
+    mqttLabel.textContent = 'Error';
+  });
+
+  let p2Temp = null, p2Hum = null;
+  let p1Temp = null, p1Hum = null;
+
+  client.on('message', (topic, message) => {
+    const val = parseFloat(message.toString());
+    const now = new Date().toLocaleTimeString('en-PH', { hour12: false });
+
+    if (topic === 'plant2/temperature') {
+      p2Temp = val;
+      document.getElementById('p2Temp').innerHTML =
+        val.toFixed(1) + '<span class="card-unit">°C</span>';
+      document.getElementById('p2TempStatus').textContent =
+        val >= LIMIT ? '⚠️ Above safe threshold (38°C)' : '✅ Within safe range';
+    }
+
+    if (topic === 'plant2/humidity') {
+      p2Hum = val;
+      document.getElementById('p2Hum').innerHTML =
+        val.toFixed(1) + '<span class="card-unit">%</span>';
+      document.getElementById('p2HumStatus').textContent = 'Relative humidity reading';
+    }
+
+    if (topic.startsWith('plant2/')) {
+      document.getElementById('p2LastUpdate').textContent = now;
+
+      if (p2Temp !== null && p2Hum !== null) {
+        document.getElementById('ov2Reading').textContent =
+          p2Temp.toFixed(1) + '°C / ' + p2Hum.toFixed(1) + '%';
+      }
+
+      const badge    = document.getElementById('p2StatusBadge');
+      const alertEl  = document.getElementById('p2Alert');
+      const ov2Badge = document.getElementById('ov2Badge');
+
+      if (p2Temp !== null && p2Temp >= LIMIT) {
+        badge.textContent = 'HIGH TEMP';
+        badge.className = 'chip-badge danger';
+        alertEl.classList.add('show');
+        ov2Badge.textContent = 'Alert';
+        ov2Badge.className = 'overview-badge badge-alert';
+      } else {
+        badge.textContent = 'NORMAL';
+        badge.className = 'chip-badge normal';
+        alertEl.classList.remove('show');
+        ov2Badge.textContent = 'Online';
+        ov2Badge.className = 'overview-badge badge-online';
+      }
+
+      if (p2Temp !== null && p2Hum !== null) {
+        p2Labels.push(now);
+        p2TempData.push(p2Temp);
+        p2HumData.push(p2Hum);
+        if (p2Labels.length > MAX_PTS) {
+          p2Labels.shift(); p2TempData.shift(); p2HumData.shift();
+        }
+        p2Chart.update('none');
+      }
+    }
+
+    if (topic === 'plant1/temperature') p1Temp = val;
+    if (topic === 'plant1/humidity')    p1Hum  = val;
+
+    if (topic.startsWith('plant1/') && p1Temp !== null && p1Hum !== null) {
+      document.getElementById('ov1Reading').textContent =
+        p1Temp.toFixed(1) + '°C / ' + p1Hum.toFixed(1) + '%';
+      document.getElementById('ov1Badge').textContent = 'Online';
+      document.getElementById('ov1Badge').className = 'overview-badge badge-online';
+    }
+  });
+</script>
+</body>
+</html>
