@@ -225,6 +225,24 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.0.3/mqtt.min.js"></script>
 
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDmstomNL0gTgPNOlXXCL3Ol0opJOcxb20",
+  authDomain: "autoliv-temp-monitor.firebaseapp.com",
+  databaseURL: "https://autoliv-temp-monitor-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "autoliv-temp-monitor",
+  storageBucket: "autoliv-temp-monitor.firebasestorage.app",
+  messagingSenderId: "1005278950712",
+  appId: "1:1005278950712:web:dfb4682cd0ceaeb1303dcd"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.database();
+  db.ref("test").set({
+    status: "Dashboard Connected",
+    time: new Date().toISOString()
+});
+  
   const BROKER  = "wss://0204957075a94afba97a2f7ebc7c6ffb.s1.eu.hivemq.cloud:8884/mqtt";
   const USER    = "ESPPROJECT";
   const PASS    = "temperature12";
